@@ -1,0 +1,65 @@
+# Unreal Project Gitignore
+
+# Folders to ignore
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.build/
+Build/Receipts/
+
+# Visual Studio files
+.vs/
+*.VC.db
+*.VC.opendb
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project backups
+Backup/
+
+# Compiled source files
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.log
+*.user
+*.userprefs
+*.obj
+*.pdb
+*.mdb
+
+# Precompiled headers
+*.pch
+*.idb
+*.ipch
+
+# Build results
+*.res
+*.ilk
+*.exe
+*.dll
+*.lib
+*.app
+
+# Cache & Temp
+*_i.c
+*_p.c
+*.cache
+*.tmp
+
+# Unreal Auto-generated
+*.generated.h
+*.generated.cpp
+
+# Python
+__pycache__/
+*.pyc
+
+# Rider / Jetbrains
+.idea/
+*.iws
+*.iml
