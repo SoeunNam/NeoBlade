@@ -615,9 +615,9 @@ void UPlayerCombatComponent::TickHitCheck()
 {
     if (!bHitActive || !OwnerCharacter) return;
 
-    UE_LOG(LogTemp, Warning,
+    /*UE_LOG(LogTemp, Warning,
         TEXT("[HIT DEBUG] HitRange=%.1f Radius=%.1f Active=%d"),
-        HitRange, HitRadius, bHitActive);
+        HitRange, HitRadius, bHitActive);*/
 
 
     // ============================

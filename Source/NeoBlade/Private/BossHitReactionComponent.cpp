@@ -55,6 +55,12 @@ void UBossHitReactionComponent::PlayHitReact()
             return;
         }
 
+        if (Boss->BossState == EBossState::Stunned)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[HitReact] Blocked — Stunned ongoing"));
+            return;
+        }
+
         // 이미 Hit이면 중복 방지
         if (Boss->BossState == EBossState::Hit)
             return;
@@ -69,6 +75,7 @@ void UBossHitReactionComponent::PlayHitReact()
                 {
                     if (!IsValid(Boss)) return;
                     if (Boss->BossState == EBossState::PhaseChange) return;
+                    if (Boss->BossState == EBossState::Stunned) return;
                     Boss->SetBossState(EBossState::Idle);
                 }),
             0.5f,

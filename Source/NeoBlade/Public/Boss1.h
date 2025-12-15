@@ -7,6 +7,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "PlayerDamageComponent.h"
 #include "Boss1.generated.h"
 
 class UBossDamageComponent;
@@ -206,6 +207,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Animation")
     UAnimMontage* SparkWaveMontage2;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Animation")
+    UAnimMontage* StunnedMontage;
+
     void MoveTowardsPlayer(float DeltaTime);
     void CheckAttack();
     void StartAttack();
@@ -335,4 +339,13 @@ public:
 
    /** IdlePause 상태를 해제하고 일반 Idle/추적 로직으로 복귀 */
    void StopIdlePause();
+
+   //stunned 상태 유지용 타이머
+   FTimerHandle StunTimer;
+
+   //stunned 상태 시작 함수
+   void EnterStunned(float Duration);
+
+   //stunned 상태 종료 함수
+   void ExitStunned();
 };

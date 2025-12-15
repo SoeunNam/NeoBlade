@@ -12,6 +12,7 @@
 #include <Kismet/GameplayStatics.h>
 #include <Kismet/KismetMathLibrary.h>
 
+#include <DamageComponent.h>
 
 
 // Sets default values for this component's properties
@@ -116,6 +117,19 @@ void UDroneEnemyFSM::AttackState()
 			UE_LOG(LogTemp, Warning, TEXT("Attack State!!"));
 
 			//Damage to Player
+
+			AActor* HitActor = target;     // ← ?? 맞은 액터
+
+			if (HitActor)
+			{
+				if (HitActor->ActorHasTag("Player"))
+				{
+					if (UDamageComponent* Dmg = HitActor->FindComponentByClass<UDamageComponent>())
+					{
+						Dmg->DealDamage(10, me);
+					}
+				}
+			}
 
 
 			if (NiagaraExplosionEffect != nullptr)

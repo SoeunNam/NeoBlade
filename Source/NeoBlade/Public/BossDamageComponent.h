@@ -39,7 +39,10 @@ private:
 	UBossHitReactionComponent* HitReactionComp = nullptr;
 
 public:
-	// 외부에서 데미지를 받을 때 사용하는 함수
-	UFUNCTION(BlueprintCallable)
-	void ApplyBossDamage(float Damage);
+	//// 외부에서 데미지를 받을 때 사용하는 함수
+	//UFUNCTION(BlueprintCallable)
+	//void ApplyBossDamage(float Damage);
+
+	// 부모  데미지 컴포넌트 공격 타입에 따른 데미지 처리 함수
+	virtual void AttackDealDamage(float Damage, AActor* Causer, EAttackType AttackType) override;
 };

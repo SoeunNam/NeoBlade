@@ -9,6 +9,8 @@
 #include "BossDamageComponent.h"
 #include "BossHitReactionComponent.h"
 #include "DrawDebugHelpers.h"
+#include "AttackType.h"
+#include "GameFramework/Character.h"
 #include "PlayerDamageComponent.h"
 
 // Sets default values
@@ -170,6 +172,10 @@ void ABoss1::Tick(float DeltaTime)
     {
         return;
 	}
+    if (BossState == EBossState::Stunned)
+    {
+        return;
+    }
     if (bIsAttacking || bPatternOnCooldown)
     {
         // 공격 중이거나 쿨타임이면 상태 유지
@@ -246,6 +252,8 @@ void ABoss1::ApplyDamage(float Amount)
 
         return;
     }
+
+
 
     // 페이즈 체크
     CheckPhaseChange();
@@ -662,6 +670,16 @@ void ABoss1::DeactivateHitBox(FName HitBoxName)
 /// <param name="NewState"></param>
 void ABoss1::SetBossState(EBossState NewState)
 {
+    if (BossState == EBossState::Stunned &&
+        NewState != EBossState::Dead)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[BossState] Blocked %d -> %d (STUNNED)"),
+            (int)BossState, (int)NewState);
+        return;
+    }
+
+
     // 상태가 같으면 무시
     if (BossState == NewState)
         return;
@@ -982,4 +1000,114 @@ void ABoss1::StopIdlePause()
 
     UE_LOG(LogTemp, Warning, TEXT("[IdlePause] Pause Ended. Resume normal AI logic."));
     // 상태는 Tick에서 자동으로 Jog 또는 Attack으로 전환될 것입니다.
+}
+/// <summary>
+/// 플레이어 패링 성공 시 보스 스턴
+/// </summary>
+/// <param name="Duration"></param>
+void ABoss1::EnterStunned(float Duration)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[Boss] Enter STUNNED"));
+
+    // === [핵심 수정 부분] IdlePause/StopAttack 타이머를 스턴 시작 시 무조건 해제 ===
+    GetWorldTimerManager().ClearTimer(IdlePauseTimer);
+    // 기존 공격의 '공격 끝 처리'가 지연되는 것을 방지합니다.
+    // =========================================================================
+
+    // 1. 상태 변경
+    BossState = EBossState::Stunned;
+
+    // 2. [핵심] 현재 재생 중인 공격 몽타주 즉시 중단
+    if (UAnimInstance* AnimInst = GetMesh()->GetAnimInstance())
+    {
+        AnimInst->StopAllMontages(0.2f); // 0.2초 블렌드 아웃하며 중단
+
+        if (StunnedMontage)
+        {
+            // 스턴 몽타주 재생. Duration은 타이머가 관리하므로, 
+            // 몽타주 재생 속도를 조정하여 Duration과 맞출 필요가 있습니다.
+            float PlayRate = StunnedMontage->GetPlayLength() / Duration;
+
+            // 만약 몽타주 재생 시간을 Duration에 맞추려면 아래 코드를 사용 (선택 사항)
+            // PlayRate = StunMontage->GetPlayLength() / Duration;
+
+            AnimInst->Montage_Play(StunnedMontage, 1.0f); // PlayRate는 1.0f로 시작하고, 
+            // 애니메이션을 스턴 시간(Duration)에 맞게 제작하는 것이 더 편합니다.
+        }
+    }
+
+    // 3. [핵심] 이동 즉시 정지 (관성 제거)
+    if (GetCharacterMovement())
+    {
+        GetCharacterMovement()->StopMovementImmediately();
+        GetCharacterMovement()->DisableMovement(); // 스턴 중 이동 불가 처리
+    }
+
+    // 4. [핵심] 켜져있던 공격 히트박스 모두 끄기
+    // (이게 없으면 스턴 걸린 상태의 주먹에 닿아도 플레이어가 데미지를 입음)
+    DeactivateHitBox("Left");
+    DeactivateHitBox("Right");
+    DeactivateHitBox("Shock");
+    DeactivateHitBox("Spin");
+    DeactivateHitBox("Landing");
+
+    // 5. 공격 관련 플래그 초기화
+    bIsAttacking = false;
+    bIsChargeMoving = false;
+    CurrentPattern = EBossPattern::None;
+
+    // 6. 타이머 재설정 (기존 패턴 타이머들이 꼬이지 않게 클리어 해주는 것이 안전)
+    GetWorldTimerManager().ClearTimer(SpinTimer);
+    //GetWorldTimerManager().ClearTimer(ChargeMoveStartTimer); // 헤더에 핸들 선언 필요
+
+    // 스턴 해제 타이머 설정
+    GetWorldTimerManager().ClearTimer(StunTimer);
+    GetWorldTimerManager().SetTimer(
+        StunTimer,
+        this,
+        &ABoss1::ExitStunned,
+        Duration,
+        false
+    );
+
+    // [추가] 타이머 설정 성공 여부 및 남은 시간 로그
+    if (GetWorldTimerManager().IsTimerActive(StunTimer))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Boss] StunTimer SET SUCCESS. Remaining: %.2f"),
+            GetWorldTimerManager().GetTimerRemaining(StunTimer));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Boss] StunTimer SET FAILED!"));
+    }
+}
+
+void ABoss1::ExitStunned()
+{
+    // 이미 죽었거나 다른 상태라면 무시
+    if (BossState != EBossState::Stunned) return;
+
+    UE_LOG(LogTemp, Warning, TEXT("[Boss] Exit STUNNED"));
+
+    // 1. 이동 다시 활성화
+    if (GetCharacterMovement())
+    {
+        GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+    }
+
+    // 2. 상태를 Idle로 복귀
+    //SetBossState(EBossState::Idle);
+	BossState = EBossState::Idle;
+   
+    // 3. 패턴/공격 플래그 강제 초기화 [수정 및 추가된 부분]
+    bIsAttacking = false;
+    bPatternOnCooldown = false; // <<< 이 플래그를 false로 설정해줘야 합니다.
+    //bCanUseSkill = true;        // <<< 쿨타임도 즉시 리셋 (필요 시)
+    //bCanNormalAttack = true;    // <<< 쿨타임도 즉시 리셋 (필요 시)
+
+    // bIsIdlePaused 상태도 초기화 해주는 것이 안전합니다.
+    bIsIdlePaused = false;
+
+    // 모든 IdlePause 타이머도 이 시점에서 확실히 정리 (안전 조치)
+    GetWorldTimerManager().ClearTimer(IdlePauseTimer);
 }
